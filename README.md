@@ -7,7 +7,7 @@ The repo contains AI Security Lab Simulation based on OWASP Top10 LLM! A collect
 ## 📚 Available Labs
 
 | Lab ID | Lab Name | Description | Status |
-|--------|-------------------|-------------|------------|
+|--------|--------------------------|-----------------------------------|---------------------|
 | LLM01 | [Prompt Injection](LLM01-Prompt%20Injection/) | Learn about prompt injection attacks and defenses in AI systems | ✅ Available |
 
 ### How to Use
