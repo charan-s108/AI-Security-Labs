@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prompt Injection Lab</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <span class="logo-icon">⬡</span>
+        <span class="logo-text">Injection Lab</span>
+      </div>
+      <div class="owasp-badge">OWASP LLM01:2025</div>
+    </div>
+
+    <nav class="mode-nav">
+      <div class="nav-label">Attack Mode</div>
+      <button class="nav-btn active" data-mode="vulnerable" onclick="setMode('vulnerable')">
+        <span class="nav-dot danger"></span>
+        Vulnerable
+        <span class="nav-desc">No defenses</span>
+      </button>
+      <button class="nav-btn" data-mode="defended" onclick="setMode('defended')">
+        <span class="nav-dot success"></span>
+        Defended
+        <span class="nav-desc">With mitigations</span>
+      </button>
+      <button class="nav-btn" data-mode="rag" onclick="setMode('rag')">
+        <span class="nav-dot warning"></span>
+        RAG Indirect
+        <span class="nav-desc">Knowledge base attack</span>
+      </button>
+    </nav>
+
+    <div class="rag-options" id="rag-options" style="display:none">
+      <div class="nav-label">RAG Settings</div>
+      <label class="toggle-row">
+        <span>Poison knowledge base</span>
+        <input type="checkbox" id="rag-poison-toggle" onchange="toggleRagPoison()">
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+      </label>
+      <div class="rag-hint" id="rag-hint">Clean KB — no malicious docs</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="nav-label">Quick Payloads</div>
+    <div class="payload-list" id="payload-list"></div>
+
+    <div class="divider"></div>
+
+    <div class="nav-label">Legit Queries</div>
+    <div class="payload-list">
+      <button class="payload-btn safe" onclick="loadPayload('What are your business hours?')">Business hours</button>
+      <button class="payload-btn safe" onclick="loadPayload('How do I reset my password?')">Password reset</button>
+      <button class="payload-btn safe" onclick="loadPayload('What is your refund policy?')">Refund policy</button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="stats-grid">
+      <div class="stat"><div class="stat-val" id="stat-total">0</div><div class="stat-lbl">Total</div></div>
+      <div class="stat"><div class="stat-val danger" id="stat-success">0</div><div class="stat-lbl">Succeeded</div></div>
+      <div class="stat"><div class="stat-val success" id="stat-blocked">0</div><div class="stat-lbl">Blocked</div></div>
+    </div>
+
+    <button class="reset-btn" onclick="resetAll()">Clear session</button>
+  </aside>
+
+  <!-- ── Main ── -->
+  <main class="main">
+
+    <!-- Top bar -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="mode-label" id="mode-label">Vulnerable Mode</span>
+        <span class="mode-sublabel" id="mode-sublabel">Direct Prompt Injection — no input sanitization</span>
+      </div>
+      <button class="sys-prompt-toggle" onclick="toggleSysPanel()">View system prompt</button>
+    </div>
+
+    <!-- System prompt panel -->
+    <div class="sys-panel" id="sys-panel" style="display:none">
+      <div class="sys-panel-header">
+        <span>System Prompt <span class="sys-tag">hidden from user in production</span></span>
+        <button class="close-btn" onclick="toggleSysPanel()">×</button>
+      </div>
+      <pre class="sys-prompt-code" id="sys-prompt-code">Loading...</pre>
+    </div>
+
+    <!-- Chat + Trace split -->
+    <div class="workspace">
+
+      <!-- Chat -->
+      <div class="chat-panel">
+        <div class="panel-header">
+          <span class="panel-title">CorpBot AI Assistant</span>
+          <span class="status-dot" id="chat-status-dot"></span>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+          <div class="welcome-msg">
+            <div class="welcome-icon">⬡</div>
+            <div class="welcome-title">CorpBot is ready</div>
+            <div class="welcome-sub">Try a legitimate query, then an attack payload from the sidebar</div>
+          </div>
+        </div>
+        <div class="chat-input-area">
+          <textarea id="chat-input" placeholder="Type a message or click a payload..." rows="2" onkeydown="handleKey(event)"></textarea>
+          <button class="send-btn" id="send-btn" onclick="sendMessage()">
+            <span>Send</span>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 8l14-7-5 7 5 7z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Trace panel -->
+      <div class="trace-panel">
+        <div class="panel-header">
+          <span class="panel-title">Injection Trace</span>
+          <span class="trace-badge" id="trace-badge">Awaiting input</span>
+        </div>
+        <div class="trace-content" id="trace-content">
+          <div class="trace-placeholder">
+            <p>The trace shows exactly what the model receives and whether an injection was detected.</p>
+            <p>Send a message to see the breakdown.</p>
+          </div>
+        </div>
+
+        <!-- RAG Doc Viewer -->
+        <div class="rag-doc-panel" id="rag-doc-panel" style="display:none">
+          <div class="rag-doc-header">Retrieved documents</div>
+          <div id="rag-doc-list"></div>
+        </div>
+
+        <!-- Status bar -->
+        <div class="status-bar" id="status-bar">
+          <span class="status-dot-sm neutral"></span>
+          <span id="status-text">No query sent yet</span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
